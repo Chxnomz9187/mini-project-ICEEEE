@@ -1,0 +1,235 @@
+enum {defa,next,before,play,stop};
+
+#define button_next 2 
+#define button_play 3
+#define button_before 4
+
+const int SpeakerPin = 11;
+
+int song[] = {0,1,2};
+int current_song = 0;
+
+int NooMaLee[] = {330,294,262,294,330,330,330, 294,294,294, 330,392,392, 330,294,262,294,330,330,330 ,294,294,330,294,262};
+const int numNooMaLee = 25;
+
+int HBD[] = {262,262,294,262,339,330, 262,262,294,262,339,330, 262,262,523,440,349,330,294,262, 494,494,440,349,392,349};
+const int numHBD = 26;
+
+int LittleStar[] = {392,392,587,587,659,659,587, 523,523,494,494,440,440,392,
+                    587,587,523,523,494,494,440, 587,587,523,523,494,494,440,
+                    392,392,587,587,659,659,587, 523,523,494,494,440,440,392};
+const int numLittleStar = 42;
+
+struct state{
+  int current_state;
+  unsigned long next_state[3];
+};
+
+typedef const struct state stype;
+
+//แก้เหลือแค่ 3 ตั้ง next state ตาม input ที่ได้เลย
+stype FSM[5] = {  
+  defa,{next,play,before},   // defa → stop ได้ด้วย
+  next,{next,play,before},
+  before,{next,play,before},
+  play,{next,stop,before},
+  stop,{next,play,before},
+};
+
+//state เริ่มต้นเป็น defa
+int cstate = 0;
+int read_before, read_play, read_next;
+int checkstate = 0;
+
+// ปุ่ม
+int buttonState_play = HIGH;
+int lastButtonState_play = HIGH;
+int buttonState_next = HIGH;
+int lastButtonState_next = HIGH;
+int buttonState_before = HIGH;
+int lastButtonState_before = HIGH;
+
+unsigned long lastDebounceTime_play = 0;
+unsigned long lastDebounceTime_next = 0;
+unsigned long lastDebounceTime_before = 0;
+unsigned long debounceDelay = 50;
+
+bool isNext = 0;
+bool isBefore = 0;
+bool isPlay = 0;  // toggle
+
+// --- ฟังก์ชันเพลง ---
+void current_song0(){
+  for(int i=0;i<numNooMaLee;i++){
+    tone(SpeakerPin, NooMaLee[i]);
+    delay(200);
+    noTone(SpeakerPin);
+    delay(100);
+
+    // อ่านปุ่ม
+    read_before = !digitalRead(button_before);
+    read_play   = !digitalRead(button_play);
+    read_next   = !digitalRead(button_next);
+
+    // map input ให้ตรง index FSM
+    int input = -1;
+    if(read_next)   input = 0;
+    else if(read_play)   input = 1;
+    else if(read_before) input = 2;
+
+    if(input!=-1){
+      cstate = FSM[cstate].next_state[input];
+      checkstate = 1;
+      break;      
+    }
+  }
+}
+
+void current_song1(){
+  for(int i=0;i<numHBD;i++){
+    tone(SpeakerPin, HBD[i]);
+    delay(200);
+    noTone(SpeakerPin);
+    delay(100);
+
+    read_before = !digitalRead(button_before);
+    read_play   = !digitalRead(button_play);
+    read_next   = !digitalRead(button_next);
+
+    int input = -1;
+    if(read_next)   input = 0;
+    else if(read_play)   input = 1;
+    else if(read_before) input = 2;
+
+    if(input!=-1){
+      cstate = FSM[cstate].next_state[input];
+      checkstate = 1;
+      break;
+    }
+  }
+}
+
+void current_song2(){
+  for(int i=0;i<numLittleStar;i++){
+    tone(SpeakerPin, LittleStar[i]);
+    delay(200);
+    noTone(SpeakerPin);
+    delay(100);
+
+    read_before = !digitalRead(button_before);
+    read_play   = !digitalRead(button_play);
+    read_next   = !digitalRead(button_next);
+
+    int input = -1;
+    if(read_next)   input = 0;
+    else if(read_play)   input = 1;
+    else if(read_before) input = 2;
+
+    if(input!=-1){
+      cstate = FSM[cstate].next_state[input];
+      checkstate = 1;
+      break;
+    }
+  }
+}
+
+// --- setup ---
+void setup() {
+  pinMode(SpeakerPin, OUTPUT);
+  pinMode(button_next , INPUT_PULLUP);
+  pinMode(button_before , INPUT_PULLUP);
+  pinMode(button_play , INPUT_PULLUP);
+  Serial.begin(9600);
+}
+
+// --- loop ---
+void loop() {
+  // ปุ่ม next
+  int reading_next = digitalRead(button_next);
+  if(reading_next != lastButtonState_next){
+    lastDebounceTime_next= millis();
+  }
+  if((millis()-lastDebounceTime_next)>debounceDelay){
+    if(reading_next != buttonState_next){
+      buttonState_next = reading_next;
+      if(buttonState_next == LOW){
+        isNext = 1;
+      }
+    }
+  }
+  lastButtonState_next = reading_next;
+  if(isNext == 1){
+    current_song = (current_song+1)%3;
+    Serial.print("Current song = "); Serial.println(current_song);
+    Serial.println("State next");
+    isNext = 0;
+  }
+
+  // ปุ่ม before
+  int reading_before = digitalRead(button_before);
+  if(reading_before != lastButtonState_before){
+    lastDebounceTime_before = millis();
+  }
+  if((millis()-lastDebounceTime_before > debounceDelay)){
+    if(reading_before != buttonState_before){
+      buttonState_before = reading_before;
+      if(buttonState_before == LOW){
+        isBefore = 1;
+      }
+    }
+  }
+  lastButtonState_before = reading_before;
+  if(isBefore == 1){
+    current_song = (current_song+2)%3;
+    Serial.print("Current song = "); Serial.println(current_song);
+    Serial.println("State before");
+    isBefore = 0;
+  }
+
+  // ปุ่ม play/stop toggle
+  int reading_play = digitalRead(button_play);
+  if (reading_play != lastButtonState_play){
+    lastDebounceTime_play = millis();
+  }
+  if ((millis() - lastDebounceTime_play)> debounceDelay){
+    if(reading_play != buttonState_play){
+      buttonState_play = reading_play;
+      if(buttonState_play == LOW){ 
+        isPlay = !isPlay;  // toggle
+        if(isPlay == 1){  
+          cstate = play;     // sync FSM
+          Serial.println("Play");
+        }
+        else{
+          noTone(SpeakerPin);
+          cstate = stop; 
+          Serial.println("Stop");
+        }
+      }
+    }
+  }
+  lastButtonState_play = reading_play;
+
+  // ถ้าอยู่ในโหมดเล่น
+  if(isPlay == 1){
+    if(FSM[cstate].current_state == play){
+      Serial.println("State play");
+      if(current_song == 0) current_song0();
+      else if(current_song == 1) current_song1();
+      else if(current_song == 2) current_song2();
+    }
+    if(checkstate != 1){
+      read_before = !digitalRead(button_before);
+      read_play   = !digitalRead(button_play);
+      read_next   = !digitalRead(button_next);
+
+      int input = -1;
+      if(read_next)   input = 0;
+      else if(read_play)   input = 1;
+      else if(read_before) input = 2;
+
+      cstate = FSM[cstate].next_state[input];
+    }
+    checkstate=0;
+  }
+}
