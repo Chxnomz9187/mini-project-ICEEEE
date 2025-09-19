@@ -67,7 +67,6 @@ void current_song0(){
     
     if(isPlay = 0 || cstate == stop){
       noTone(SpeakerPin);
-      Serial.println("Stop");
       break;
     }
     
@@ -99,7 +98,6 @@ void current_song1(){
     
     if(isPlay = 0 || cstate == stop){
       noTone(SpeakerPin);
-      Serial.println("Stop");
       break;
     }
     
@@ -131,7 +129,6 @@ void current_song2(){
     
     if(isPlay = 0 || cstate == stop){
       noTone(SpeakerPin);
-      Serial.println("Stop");
       break;
     }
     
